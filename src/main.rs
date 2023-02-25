@@ -14,15 +14,15 @@ use anyhow;
 #[derive(Parser, Debug)]
 #[command(version, about = "CPAL feedback example", long_about = None)]
 struct Opt {
-    /// The input audio device to use
+    #[arg(short = 'v', long, value_name = "LIST_DEVICES", default_value_t = false)]
+    list_devices: bool,
+
     #[arg(short, long, value_name = "IN", default_value_t = String::from("default"))]
     input_device: String,
 
-    /// The output audio device to use
     #[arg(short, long, value_name = "OUT", default_value_t = String::from("default"))]
     output_device: String,
 
-    /// Specify the delay between input and output
     #[arg(short, long, value_name = "DELAY_MS", default_value_t = 150.0)]
     latency: f32,
 
@@ -78,6 +78,17 @@ fn main() -> anyhow::Result<()> {
     ))]
     let host = cpal::default_host();
 
+    if opt.list_devices {
+        println!("input devices");
+        for input_device in host.input_devices()? {
+            println!("{}", input_device.name()?);
+        }
+        println!("output_device devices");
+        for output_device in host.output_devices()? {
+            println!("{}", output_device.name()?);
+        }
+        return Ok(())
+    }
     // Find devices.
     let input_device = if opt.input_device == "default" {
         host.default_input_device()
