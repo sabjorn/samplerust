@@ -10,3 +10,4 @@ cpal = "0.15.0"
 ringbuf = "0.3"
 clap = { version = "4.0", features = ["derive"] }
 anyhow = "1.0"
+hound = "3.5.0"
