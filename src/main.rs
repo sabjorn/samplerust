@@ -117,30 +117,22 @@ fn main() -> anyhow::Result<()> {
     }
 
     let input_data_fn = move |data: &[f32], _: &cpal::InputCallbackInfo| {
-        let mut output_fell_behind = false;
         for &sample in data {
-            if producer.push(sample).is_err() {
-                output_fell_behind = true;
-            }
-        }
-        if output_fell_behind {
-            eprintln!("output stream fell behind: try increasing latency");
+            producer.push(sample).unwrap_or_else(|_| {
+                eprintln!("output stream fell behind: try increasing latency");
+            });
         }
     };
 
     let output_data_fn = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-        let mut input_fell_behind = false;
         for sample in data {
             *sample = match consumer.pop() {
                 Some(s) => s,
                 None => {
-                    input_fell_behind = true;
+                    eprintln!("input stream fell behind: try increasing latency");
                     0.0
                 }
             };
-        }
-        if input_fell_behind {
-            eprintln!("input stream fell behind: try increasing latency");
         }
     };
 
