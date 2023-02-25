@@ -23,8 +23,8 @@ struct Opt {
     #[arg(short, long, value_name = "OUT", default_value_t = String::from("default"))]
     output_device: String,
 
-    #[arg(short, long, value_name = "DELAY_MS", default_value_t = 150.0)]
-    latency: f32,
+    #[arg(short, long, value_name = "DELAY_MS", default_value_t = 512)]
+    latency: usize,
 
     /// Use the JACK host
     #[cfg(all(
@@ -41,9 +41,7 @@ struct Opt {
     jack: bool,
 }
 
-fn main() -> anyhow::Result<()> {
-    let opt = Opt::parse();
-
+fn setup_host(_opt: &Opt) -> cpal::Host {
     // Conditionally compile with jack if the feature is specified.
     #[cfg(all(
         any(
@@ -56,7 +54,7 @@ fn main() -> anyhow::Result<()> {
     ))]
     // Manually check for flags. Can be passed through cargo with -- e.g.
     // cargo run --release --example beep --features jack -- --jack
-    let host = if opt.jack {
+    if _opt.jack {
         cpal::host_from_id(cpal::available_hosts()
             .into_iter()
             .find(|id| *id == cpal::HostId::Jack)
@@ -65,7 +63,7 @@ fn main() -> anyhow::Result<()> {
             )).expect("jack host unavailable")
     } else {
         cpal::default_host()
-    };
+    }
 
     #[cfg(any(
         not(any(
@@ -76,7 +74,13 @@ fn main() -> anyhow::Result<()> {
         )),
         not(feature = "jack")
     ))]
-    let host = cpal::default_host();
+    cpal::default_host()
+}
+
+fn main() -> anyhow::Result<()> {
+    let opt = Opt::parse();
+    
+    let host = setup_host(&opt);
 
     if opt.list_devices {
         println!("input devices");
@@ -89,6 +93,7 @@ fn main() -> anyhow::Result<()> {
         }
         return Ok(())
     }
+
     // Find devices.
     let input_device = if opt.input_device == "default" {
         host.default_input_device()
@@ -113,8 +118,7 @@ fn main() -> anyhow::Result<()> {
     let config: cpal::StreamConfig = input_device.default_input_config()?.into();
 
     // Create a delay in case the input and output devices aren't synced.
-    let latency_frames = (opt.latency / 1_000.0) * config.sample_rate.0 as f32;
-    let latency_samples = latency_frames as usize * config.channels as usize;
+    let latency_samples = opt.latency * config.channels as usize;
 
     // The buffer to share samples
     let ring = HeapRb::<f32>::new(latency_samples * 2);
@@ -159,7 +163,7 @@ fn main() -> anyhow::Result<()> {
     // Play the streams.
     println!(
         "Starting the input and output streams with `{}` milliseconds of latency.",
-        opt.latency
+        (opt.latency as f32 / 1_000.0) * config.sample_rate.0 as f32
     );
     input_stream.play()?;
     output_stream.play()?;
