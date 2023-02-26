@@ -99,7 +99,8 @@ fn main() -> anyhow::Result<()> {
 
     // We'll try and use the same configuration between streams to keep it simple.
     let config: cpal::StreamConfig = output_device.default_output_config()?.into();
-
+    // todo: it may be better to copy wavefile data into custom iterator to allow for looping
+    // automatically (keep track of own count)
     let mut reader = WavReader::open(opt.wav_file).unwrap();
     let wav_length = reader.len() as usize;
     let mut count = 0 as usize;
