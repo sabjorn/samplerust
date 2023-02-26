@@ -105,19 +105,20 @@ fn main() -> anyhow::Result<()> {
     let mut count = 0 as usize;
 
     let output_data_fn = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-        // alternative to cycle
-        //let (front, back) = v.split_at(3);
-        //for element in back.iter().chain(front) { /* loop */ }
-        //cycle().skip(count).take(config.buffer_size) 
-        let reader_iter = reader.samples::<i16>();
-        for (sample, wav_sample) in data.iter_mut().zip(reader_iter) {
-            let wav_sample = wav_sample.unwrap() as f32;
-            // convert wav_sample to f3
-            *sample = wav_sample;
-        }
+        for sample in data.iter_mut() {
+            count += 1;
+            
+            if count > wav_length {
+                reader.seek(0).unwrap();
+                count = 0;
+            }
+            
+             // convert wav_sample to f3
+            let mut reader_iter = reader.samples::<i16>();
+            let wav_sample = reader_iter.next().unwrap().unwrap();
+            *sample = wav_sample as f32;
         
-        let buffer_size = data.len() as usize;
-        count = (count + buffer_size) % wav_length;
+        }
     };
 
     // Build streams.
@@ -130,9 +131,9 @@ fn main() -> anyhow::Result<()> {
 
     output_stream.play()?;
 
-    // Run for 3 seconds before closing.
-    println!("Playing for 3 seconds... ");
-    std::thread::sleep(std::time::Duration::from_secs(3));
+    let playtime = 10;
+    println!("Playing for {} seconds... ", playtime);
+    std::thread::sleep(std::time::Duration::from_secs(playtime));
     drop(output_stream);
     println!("Done!");
     Ok(())
