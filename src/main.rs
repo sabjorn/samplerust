@@ -101,14 +101,14 @@ fn main() -> anyhow::Result<()> {
     let reader = WavReader::open(opt.wav_file).unwrap();
     let wav_length = reader.len() as usize;
 
-    let audio: Vec<i16> = reader.into_samples::<i16>().flatten().collect(); 
+    let audio: Vec<f32> = reader.into_samples::<i16>().flatten().map(|x| x as f32).collect(); 
 
     let mut count = 0 as usize;
     let output_data_fn = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
         let mut cycle_audio = audio.iter().cycle().skip(count).take(data.len());
         for sample in data.iter_mut() {
             let wav_sample = cycle_audio.next().unwrap();
-            *sample = *wav_sample as f32;
+            *sample = *wav_sample;
         }
         count = (count + data.len()) % wav_length;
     };
