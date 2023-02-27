@@ -103,6 +103,9 @@ impl AudioBuffer {
         self.playhead = (self.playhead + 1) % self.buffer.len();
         sample
     }
+    fn seek(&mut self, position: usize){
+        self.playhead = position;
+    }
 }
 
 fn main() -> anyhow::Result<()> {
