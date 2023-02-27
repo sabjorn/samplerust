@@ -74,6 +74,30 @@ fn setup_host(_opt: &Opt) -> cpal::Host {
     cpal::default_host()
 }
 
+struct AudioBuffer {
+    buffer : Vec<f32>,
+    playhead : usize,
+}
+
+impl AudioBuffer {
+    fn new(filename: String) -> AudioBuffer {
+        let reader = WavReader::open(filename).unwrap();
+        let buffer: Vec<f32> = reader.into_samples::<i16>()
+            .flatten()
+            .map(|x| x as f32 / 32768.)
+            .collect(); 
+        AudioBuffer {buffer, playhead: 0}
+    }
+    fn next(&mut self) -> f32 {
+        let sample = self.buffer[self.playhead];
+        self.playhead = (self.playhead + 1) % self.buffer.len();
+        sample
+    }
+    fn len(&self) -> usize {
+        self.buffer.len()
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     let opt = Opt::parse();
     
@@ -98,22 +122,13 @@ fn main() -> anyhow::Result<()> {
 
     let config: cpal::StreamConfig = output_device.default_output_config()?.into();
 
-    let reader = WavReader::open(opt.wav_file).unwrap();
-    let wav_length = reader.len() as usize;
+    let mut audio = AudioBuffer::new(opt.wav_file);
 
-    let audio: Vec<f32> = reader.into_samples::<i16>()
-        .flatten()
-        .map(|x| x as f32 / 32768.)
-        .collect(); 
-
-    let mut count = 0 as usize;
     let output_data_fn = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-        let mut cycle_audio = audio.iter().cycle().skip(count).take(data.len());
         for sample in data.iter_mut() {
-            let wav_sample = cycle_audio.next().unwrap();
-            *sample = *wav_sample;
+            let wav_sample = audio.next();
+            *sample = wav_sample;
         }
-        count = (count + data.len()) % wav_length;
     };
 
     // Build streams.
