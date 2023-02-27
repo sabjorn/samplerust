@@ -101,7 +101,10 @@ fn main() -> anyhow::Result<()> {
     let reader = WavReader::open(opt.wav_file).unwrap();
     let wav_length = reader.len() as usize;
 
-    let audio: Vec<f32> = reader.into_samples::<i16>().flatten().map(|x| x as f32).collect(); 
+    let audio: Vec<f32> = reader.into_samples::<i16>()
+        .flatten()
+        .map(|x| x as f32 / 32768.)
+        .collect(); 
 
     let mut count = 0 as usize;
     let output_data_fn = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
