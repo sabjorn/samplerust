@@ -94,22 +94,20 @@ fn main() -> anyhow::Result<()> {
             .find(|x| x.name().map(|y| y == opt.output_device).unwrap_or(false))
     }
     .expect("failed to find output device");
-
     println!("Using output device: \"{}\"", output_device.name()?);
 
-    // We'll try and use the same configuration between streams to keep it simple.
     let config: cpal::StreamConfig = output_device.default_output_config()?.into();
-    // todo: it may be better to copy wavefile data into custom iterator to allow for looping
-    // automatically (keep track of own count)
+
     let reader = WavReader::open(opt.wav_file).unwrap();
     let wav_length = reader.len() as usize;
-    let mut count = 0 as usize;
 
     let audio: Vec<i16> = reader.into_samples::<i16>().flatten().collect(); 
 
+    let mut count = 0 as usize;
     let output_data_fn = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-        let cycle_audio = audio.iter().cycle().skip(count).take(data.len());
-        for (sample, wav_sample) in data.iter_mut().zip(cycle_audio) {
+        let mut cycle_audio = audio.iter().cycle().skip(count).take(data.len());
+        for sample in data.iter_mut() {
+            let wav_sample = cycle_audio.next().unwrap();
             *sample = *wav_sample as f32;
         }
         count = (count + data.len()) % wav_length;
@@ -125,11 +123,8 @@ fn main() -> anyhow::Result<()> {
 
     output_stream.play()?;
 
-    let playtime = 10;
-    println!("Playing for {} seconds... ", playtime);
-    std::thread::sleep(std::time::Duration::from_secs(playtime));
-    drop(output_stream);
-    println!("Done!");
+    std::thread::park();
+
     Ok(())
 }
 
