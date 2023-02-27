@@ -131,7 +131,6 @@ fn main() -> anyhow::Result<()> {
         }
     };
 
-    // Build streams.
     println!(
         "Attempting to build both streams with f32 samples and `{:?}`.",
         config
