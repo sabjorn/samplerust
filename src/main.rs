@@ -101,25 +101,18 @@ fn main() -> anyhow::Result<()> {
     let config: cpal::StreamConfig = output_device.default_output_config()?.into();
     // todo: it may be better to copy wavefile data into custom iterator to allow for looping
     // automatically (keep track of own count)
-    let mut reader = WavReader::open(opt.wav_file).unwrap();
+    let reader = WavReader::open(opt.wav_file).unwrap();
     let wav_length = reader.len() as usize;
     let mut count = 0 as usize;
 
+    let audio: Vec<i16> = reader.into_samples::<i16>().flatten().collect(); 
+
     let output_data_fn = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-        for sample in data.iter_mut() {
-            count += 1;
-            
-            if count > wav_length {
-                reader.seek(0).unwrap();
-                count = 0;
-            }
-            
-             // convert wav_sample to f3
-            let mut reader_iter = reader.samples::<i16>();
-            let wav_sample = reader_iter.next().unwrap().unwrap();
-            *sample = wav_sample as f32;
-        
+        let cycle_audio = audio.iter().cycle().skip(count).take(data.len());
+        for (sample, wav_sample) in data.iter_mut().zip(cycle_audio) {
+            *sample = *wav_sample as f32;
         }
+        count = (count + data.len()) % wav_length;
     };
 
     // Build streams.
