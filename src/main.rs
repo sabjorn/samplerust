@@ -21,7 +21,7 @@ struct Opt {
     output_device: String,
 
     #[arg(short, long, value_name = "WAV_FILE")]
-    wav_file: String,
+    wav_files: Vec<String>,
 
     /// Use the JACK host
     #[cfg(all(
@@ -80,7 +80,7 @@ struct AudioBuffer {
 }
 
 impl AudioBuffer {
-    fn new(filename: String) -> AudioBuffer {
+    fn new(filename: &String) -> AudioBuffer {
         let reader = WavReader::open(filename).unwrap();
         let buffer: Vec<f32> = reader.into_samples::<i16>()
             .flatten()
@@ -122,11 +122,11 @@ fn main() -> anyhow::Result<()> {
 
     let config: cpal::StreamConfig = output_device.default_output_config()?.into();
 
-    let mut audio = AudioBuffer::new(opt.wav_file);
+    let mut audios: Vec<AudioBuffer> = opt.wav_files.iter().map(|filename| AudioBuffer::new(filename)).collect();
 
     let output_data_fn = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
         for sample in data.iter_mut() {
-            let wav_sample = audio.next();
+            let wav_sample = audios.iter_mut().map(|buffer| buffer.next()).sum();
             *sample = wav_sample;
         }
     };
