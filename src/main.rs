@@ -89,12 +89,19 @@ impl AudioBuffer {
         AudioBuffer {buffer, playhead: 0}
     }
     fn next(&mut self) -> f32 {
+        if self.playhead >= self.buffer.len() {
+            return 0.
+        }
+
+        let sample = self.buffer[self.playhead];
+        self.playhead = self.playhead + 1;
+
+        sample
+    }
+    fn loop_next(&mut self) -> f32 {
         let sample = self.buffer[self.playhead];
         self.playhead = (self.playhead + 1) % self.buffer.len();
         sample
-    }
-    fn len(&self) -> usize {
-        self.buffer.len()
     }
 }
 
@@ -126,7 +133,7 @@ fn main() -> anyhow::Result<()> {
 
     let output_data_fn = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
         for sample in data.iter_mut() {
-            let wav_sample = audios.iter_mut().map(|buffer| buffer.next()).sum();
+            let wav_sample = audios.iter_mut().map(|buffer| buffer.loop_next()).sum();
             *sample = wav_sample;
         }
     };
